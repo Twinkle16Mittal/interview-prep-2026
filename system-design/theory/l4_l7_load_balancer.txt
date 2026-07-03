@@ -1,0 +1,43 @@
+Two types of load balancer
+
+1. L4- Transport Layer (passthrough and proxy)
+2. L7 - Apllication layer (proxy)
+
+
+L4 LB: When loadbalacer don't wamt to go deep in the data like what is HTTP and header so in that case 
+we can use L4. 
+In L4 we have two type 1 passthorugh it basically does not create the separate connection. between LB and backend server.
+so when we get the request from the client then L4 LB directly pass the request to the connected backend server and when backend server return the resposne it pass through the directly to the client.
+
+
+In proxy when client send the requets to the load balanacer then load balancer terminate this connection and it will create teh new connection with backend server so here it can check the health of the server and easily apply some logic and once the backend server send the response it terminated the connection and send the response on the existing client connection and send the response.
+
+
+L7 LB: Application Layer
+Unlike L4, an L7 load balancer always terminates the connection — there's no "passthrough" mode at this layer, because to read HTTP data (headers, path, cookies, method) it has to fully receive and parse the request first. It can't just forward raw packets blindly the way L4 passthrough does.
+So the flow is: client sends request → L7 LB terminates that connection, reads inside the request (URL path, headers, cookies) → based on that content, it decides which backend to send it to, and opens a separate connection to that backend → backend sends response back to LB → LB sends response back to client on the original connection.
+Because it's always terminating and re-establishing (like L4 proxy mode), it can do everything L4 proxy can — health checks, connection pooling to backends — plus more, since it can see the actual request:
+
+Route /api/* to one service, /images/* to another (path-based routing)
+Route based on a cookie, so the same user keeps hitting the same backend (session affinity)
+Terminate SSL/TLS at the LB so backend servers don't have to handle encryption
+Rewrite or modify requests before forwarding
+
+
+Small correction — the LB doesn't create a new connection with the client to send the response. Let's separate the two connections clearly:
+
+Connection 1: Client ↔ LB — established when the client's original request arrives. This stays open the whole time.
+Connection 2: LB ↔ Backend — a separate connection the LB opens to forward the request.
+
+So the actual flow is:
+
+Client opens Connection 1 with the LB, sends request
+LB opens Connection 2 with the backend, forwards the request
+Backend sends response back on Connection 2
+LB sends that response back to the client using the same Connection 1 that was already open — no new connection needed here
+
+
+Examples are:
+
+L4 -> AWS Network Load Balancer , HAProxy(can run in L4 mode)
+L7 (Application layer) - AWS Application Load Balancer , NGINX, HAProxy(can also run in L7 mode — same tool, different config)
